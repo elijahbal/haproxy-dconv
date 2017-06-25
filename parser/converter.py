@@ -9,9 +9,6 @@ import re
 import sys
 import cgi
 import datetime
-
-
-
 from urllib.parse import quote
 
 from mako.lookup import TemplateLookup
@@ -26,21 +23,23 @@ import parser.table
 import parser.seealso
 
 
-
-
-
 def getTitleDetails(string):
-    array = string.split(".")
-
-    title = array.pop().strip()
-    chapter = ".".join(array)
-    level = max(1, len(array))
-    if array:
-        toplevel = array[0]
+    my = re.search("(^(\d+\.?)+)\s", string)
+    if my and my.group(0):
+        chap_num_sequence = [num for num in my.group(1).split(".") if num]
+        chap_number = ".".join(chap_num_sequence)
+        title = string[my.end(0):]
     else:
-        toplevel = False
+        chap_num_sequence = []
+        chap_number = ""
+        title = string
 
-    return {"title": title, "chapter": chapter,
+    title=title.rstrip().lstrip(' ').rstrip(' ')
+
+    level = max(1, len(chap_num_sequence))
+    toplevel = chap_num_sequence[0] if chap_num_sequence else False
+
+    return {"title": title, "chapter": chap_number,
             "level": level, "toplevel": toplevel}
 
 
@@ -92,7 +91,13 @@ def createLinks():
                                '</a>' + delimiter['end'])
         else:
             for delimiter in delimiters:
-                document = document.replace(delimiter['start'] + keyword + delimiter['end'], delimiter['start'] + '<a href="#' + quote(keyword) + '">' + keyword + '</a>' + delimiter['end'])
+                document = document.replace(delimiter['start'] +
+                                            keyword + delimiter['end'],
+                                            delimiter['start'] +
+                                            '<a href="#' + quote(keyword) + '">' +
+                                            keyword + '</a>' +
+                                            delimiter['end'])
+
         if keyword.startswith("option "):
             shortKeyword = keyword[len("option "):]
             keywordsCount[shortKeyword] = 0
@@ -138,13 +143,11 @@ def convert_all(infiles, outdir, base=''):
         )
         data = convert(pctxt, infile, outfile, base)
         converted.append((outfile, data))
-
         menu.append((basefile, data['pctxt'].context['headers']['subtitle']))
 
     for item in converted:
         outfile, data = item
         data['menu'] = menu
-
         print("Exporting to %s..." % outfile, file=sys.stderr)
         template = pctxt.templates.get_template('template.html')
         with open(outfile,'w') as fd:
@@ -159,19 +162,15 @@ def convert(pctxt, infile, outfile, base='', version='', haproxy_version=''):
 
     hasSummary = False
 
-    # read data from the input file,
-    # store everything as a list of string
-    # after replacing tabulation characters
-    # with 8 spaces
     with open(infile) as fd:
         data = [line.replace("\t", " "*8).rstrip() for line in fd.readlines()]
 
     parsers = init_parsers(pctxt)
 
     pctxt.context = {
-            'headers':  {},
+            'headers': {},
             'document': "",
-            'base':     base,
+            'base': base,
     }
 
     sections = []
@@ -181,7 +180,6 @@ def convert(pctxt, infile, outfile, base='', version='', haproxy_version=''):
     }
 
     chapters = {}
-
     keywords = {}
     keywordsCount = {}
 
@@ -208,9 +206,13 @@ def convert(pctxt, infile, outfile, base='', version='', haproxy_version=''):
             next = data[i + 1].rstrip()
         else:
             next = ""
-        if (line == "Summary" or re.match("^[0-9].*", line)) and (len(next) > 0) and (next[0] == '-') \
-                and ("-" * len(line)).startswith(next):  # Fuzzy underline length detection
+        if (line == "Summary" or re.match("^[0-9].*", line)) \
+                and (len(next) > 0) and (next[0] == '-') \
+                and ("-" * len(line)).startswith(next):
+            # in this case, we are at a section header or at the Summary line
             sections.append(currentSection)
+            # we store the section here but we can do better --
+            # we can fetch the level of that section
             currentSection = {
                 "details": getTitleDetails(line),
                 "content": "",
@@ -246,8 +248,6 @@ def convert(pctxt, infile, outfile, base='', version='', haproxy_version=''):
         if title:
             fulltitle = title
             if details["chapter"]:
-                #documentAppend("<a name=\"%s\"></a>" % details["chapter"])
-                fulltitle = details["chapter"] + ". " + title
                 if not details["chapter"] in chapters:
                     print("Adding '%s' to the summary" % details["title"], file=sys.stderr)
                     chapters[details["chapter"]] = details
@@ -275,10 +275,16 @@ def convert(pctxt, infile, outfile, base='', version='', haproxy_version=''):
                 continue
 
         if title:
-            documentAppend('<a class="anchor" id="%s" name="%s"></a>' % (details["chapter"], details["chapter"]))
+            documentAppend(
+                '<a class="anchor" id="%s" name="%s"></a>' %
+                (details["chapter"], details["chapter"]))
             if level == 1:
                 documentAppend("<div class=\"page-header\">", False)
-            documentAppend('<h%d id="chapter-%s" data-target="%s"><small><a class="small" href="#%s">%s.</a></small> %s</h%d>' % (level, details["chapter"], details["chapter"], details["chapter"], details["chapter"], cgi.escape(title, True), level))
+
+            documentAppend(
+                '<h%d id="chapter-%s" data-target="%s"><small><a class="small" href="#%s">%s.</a></small> %s</h%d>' %
+                (level, details["chapter"], details["chapter"], details["chapter"], details["chapter"], cgi.escape(title, True), level))
+
             if level == 1:
                 documentAppend("</div>", False)
 
@@ -301,11 +307,11 @@ def convert(pctxt, infile, outfile, base='', version='', haproxy_version=''):
             if not title:
                 lines = pctxt.get_lines()
                 pctxt.context['headers'] = {
-                    'title':    '',
+                    'title': '',
                     'subtitle': '',
-                    'version':  '',
-                    'author':   '',
-                    'date':     ''
+                    'version': '',
+                    'author': '',
+                    'date': ''
                 }
                 if re.match("^-+$", pctxt.get_line().strip()):
                     # Try to analyze the header of the file, assuming it follows
