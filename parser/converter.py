@@ -21,24 +21,8 @@ import parser.keyword
 import parser.example
 import parser.table
 import parser.seealso
+import parser.sections
 
-
-def getTitleDetails(string):
-    my = re.search("(^(\d+\.?)+)\s", string)
-    if my and my.group(0):  # case of a number in the section title
-        chap_num_sequence = [num for num in my.group(1).split(".") if num]
-        chap_number = ".".join(chap_num_sequence)
-        title = string[my.end(0):]
-    else:
-        chap_num_sequence = []
-        chap_number = ""
-        title = string
-    title=title.rstrip().lstrip(' ').rstrip(' ')
-    level = max(1, len(chap_num_sequence))
-    toplevel = chap_num_sequence[0] if chap_num_sequence else False
-
-    return {"title": title, "chapter": chap_number,
-            "level": level, "toplevel": toplevel}
 
 
 # Parse the whole document to insert links on keywords
@@ -158,8 +142,6 @@ def convert(pctxt, infile, outfile, base='', version='', haproxy_version=''):
     if base and base[:-1] != '/':
         base += '/'
 
-    hasSummary = False
-
     with open(infile) as fd:
         data = [line.replace("\t", " "*8).rstrip() for line in fd.readlines()]
 
@@ -171,13 +153,6 @@ def convert(pctxt, infile, outfile, base='', version='', haproxy_version=''):
             'base': base,
     }
 
-    sections = []
-    currentSection = {
-            "details": getTitleDetails(""),
-            "content": "",
-    }
-
-    chapters = {}
     keywords = {}
     keywordsCount = {}
 
@@ -190,68 +165,19 @@ def convert(pctxt, infile, outfile, base='', version='', haproxy_version=''):
             },
     }
 
+    print("Importing %s..." % infile, file=sys.stderr)
+    section_list, chapters, hasSummary, i, nblines = parser.sections.build_sections(data)
+
     pctxt.keywords = keywords
     pctxt.keywordsCount = keywordsCount
     pctxt.chapters = chapters
 
-    print("Importing %s..." % infile, file=sys.stderr)
-
-    nblines = len(data)
-    i = j = 0
-    while i < nblines:
-        line = data[i].rstrip()
-        if i < nblines - 1:
-            next = data[i + 1].rstrip()
-        else:
-            next = ""
-        if (line == "Summary" or re.match("^[0-9].*", line)) \
-                and (len(next) > 0) and (next[0] == '-') \
-                and ("-" * len(line)).startswith(next):
-            # in this case, we are at a section header or at the Summary line
-            sections.append(currentSection)
-            # we store the section here but we can do better --
-            # we can fetch the level of that section
-            currentSection = {
-                "details": getTitleDetails(line),
-                "content": "",
-            }
-            j = 0
-            i += 1 # Skip underline
-            while not data[i + 1].rstrip():
-                i += 1 # Skip empty lines
-
-        else:
-            if len(line) > 80:
-                print("Line `%i' exceeds 80 columns" % (i + 1), file=sys.stderr)
-
-            currentSection["content"] = currentSection["content"] + line + "\n"
-            j += 1
-            if currentSection["details"]["title"] == "Summary" and line != "":
-                hasSummary = True
-                # Learn chapters from the summary
-                details = getTitleDetails(line)
-                if details["chapter"]:
-                    chapters[details["chapter"]] = details
-        i += 1
-    sections.append(currentSection)
-
     chapterIndexes = sorted(list(chapters.keys()), key=lambda chapter: list(map(int, chapter.split('.'))))
-
     document = ""
 
-    # Complete the summary
-    for section in sections:
-        details = section["details"]
-        title = details["title"]
-        if title:
-            fulltitle = title
-            if details["chapter"]:
-                if not details["chapter"] in chapters:
-                    print("Adding '%s' to the summary" % details["title"], file=sys.stderr)
-                    chapters[details["chapter"]] = details
-                    chapterIndexes = sorted(chapters.keys())
+    chapters, chapterIndexes = parser.sections.completeSummary(section_list, chapters, chapterIndexes)
 
-    for section in sections:
+    for section in section_list:
         details = section["details"]
         pctxt.details = details
         level = details["level"]
