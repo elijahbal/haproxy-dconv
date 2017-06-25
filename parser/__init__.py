@@ -17,6 +17,9 @@ class Parser:
 
 class PContext:
     def __init__(self, templates = None):
+        """
+        :param templates:
+        """
         self.set_content_list([])
         self.templates = templates
 

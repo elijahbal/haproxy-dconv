@@ -25,7 +25,7 @@ import parser.seealso
 
 def getTitleDetails(string):
     my = re.search("(^(\d+\.?)+)\s", string)
-    if my and my.group(0):
+    if my and my.group(0):  # case of a number in the section title
         chap_num_sequence = [num for num in my.group(1).split(".") if num]
         chap_number = ".".join(chap_num_sequence)
         title = string[my.end(0):]
@@ -33,9 +33,7 @@ def getTitleDetails(string):
         chap_num_sequence = []
         chap_number = ""
         title = string
-
     title=title.rstrip().lstrip(' ').rstrip(' ')
-
     level = max(1, len(chap_num_sequence))
     toplevel = chap_num_sequence[0] if chap_num_sequence else False
 

@@ -2,15 +2,16 @@ import re
 import parser
 
 class SeeAlsoParser(parser.Parser):
+    """
+    This Parser class aims to find the 'See also'
+    parts of the document
+    """
     def parse(self, line):
         pctxt = self.pctxt
-
         result = re.search(r'(See also *:)', line)
         if result:
             label = result.group(0)
-
             desc = re.sub(r'.*See also *:', '', line).strip()
-
             indent = parser.get_indent(line)
 
             # Some descriptions are on multiple lines
