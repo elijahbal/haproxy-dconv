@@ -4,7 +4,11 @@ __all__ = [
     'keyword',
     'seealso',
     'table',
-    'underline'
+    'underline',
+    'converter',
+    'html_module',
+    'rst_module',
+    'parser_shared',
 ]
 
 

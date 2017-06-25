@@ -18,7 +18,7 @@
 import os
 from optparse import OptionParser
 
-from parser import converter, git_parser
+from parser.html_module import convert_all_html as convert_all
 
 
 def main():
@@ -57,7 +57,7 @@ def main():
 
     script_place = os.path.dirname(__file__)
     os.chdir(script_place if script_place else '.')
-    converter.convert_all(files, option.output_directory, option.base)
+    convert_all(files, option.output_directory, option.base)
 
 
 if __name__ == '__main__':

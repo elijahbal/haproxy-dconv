@@ -1,6 +1,6 @@
 import pytest
 
-from parser import converter
+from parser import sections
 
 @pytest.mark.parametrize(
     "input_string,expected",
@@ -14,5 +14,5 @@ from parser import converter
      ]
 )
 def test_getTitleDetails(input_string, expected):
-    my = converter.getTitleDetails(input_string)
+    my = sections.getTitleDetails(input_string)
     assert my == expected
